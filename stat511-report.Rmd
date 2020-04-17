@@ -1,0 +1,281 @@
+---
+title: "Stat511-report"
+author: "Gulshankumar Bakle"
+date: "3/12/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+housing<-read.csv(file = 'C:/Users/gulsh/OneDrive/Desktop/Stats 511/USA_Housing.csv')
+head(housing)
+names(housing)
+nrow(housing)
+ncol(housing)
+summary(housing)
+```
+
+
+I am using USA housing datset for this report, from www.kaggle.com/datasets . From read.csv, I found that there are 7 columns, denoting features or explainatory variables that govern the prices of houses over the United States. They are as follows:
+'Avg area income': Avg income of residents of the city, for the house located in
+'Avg..Area.House.Age': Avg age of the house
+'Avg..Area.Number.of.Rooms': Avg number of rooms for that house
+'Avg..Area.Number.of.Bedrooms': Avg number of bedrooms
+'Area.Population': Population of the area that house is located in
+'Pirce': Avg price the house is sold at
+
+The dataset has 5000 rows, with no null or empty values. 
+```{r}
+str(housing)
+#View(housing)
+grp=c(housing$NorOfRooms,housing$AgeOfHouses)
+
+```
+
+names of columns are changed for simplicity
+```{r}
+names(housing)[names(housing)=="Avg..Area.Income"]<-'Income'
+names(housing)[names(housing)=="Avg..Area.House.Age"]<-'AgeOfHouses'
+names(housing)[names(housing)=="Avg..Area.Number.of.Rooms"]<-'NorOfRooms'
+names(housing)[names(housing)=="Avg..Area.Number.of.Bedrooms"]<-'Br'
+names(housing)[names(housing)=="Area.Population"]<-'Pop'
+
+
+```
+
+
+Lets plot it down!!
+```{r}
+ggplot(data=housing, aes(x=NorOfRooms))+
+    geom_histogram(binwidth = 0.2,color="black",alpha=0.5, fill="orange")+
+    ggtitle("Population histogram")+xlab("Number of rooms")
+
+
+ggplot(data=housing, aes(x=AgeOfHouses))+
+    geom_histogram(binwidth = 0.2,color="black",alpha=0.5, fill="orange")+
+    ggtitle("Population histogram")+xlab("House age")
+
+```
+
+```{r}
+par(mfrow=c(2,3))
+colnames<-dimnames(housing)[[2]]
+for (i in 1:6){
+  d<-density(housing[,i])
+  plot(d,type="n",main=colnames[i])
+  polygon(d,col="orange", border="black")
+}
+
+```
+
+```{r}
+#ggplot(data=housing,aes(x=Avg..Area.Number.of.Rooms,y=Avg..Area.Income))+geom_boxplot()
+
+
+
+
+#Now lets create some bins from housing data corresponding to Income groups,Age of house, Number of rooms and Bedrooms using cut function
+housing$incGrps10k<-cut(housing$Income,10,labels = c("1.77-2.68","2.68-3.58","3.58-4.48","4,48-5.38","5.38-6.27","6.27-7.17","7.17-8.07","8.07-8.97","8.97-9.87","9.87-1.08"))
+head(housing)
+
+ggplot(data=housing,aes(x=incGrps10k,y=Price))+geom_boxplot()
+#names(housing)
+```
+
+From the box plot it can be observed that population mean prices are different for different groups of incomes. Lets create few more groups based on age of houses, number of bedrooms each house has and number of rooms each house holds.
+
+
+Age of house:
+
+```{r}
+
+housing$AgeGrps<-cut(housing$AgeOfHouses,10,labels = c("2.5-3.3","3.33-4.02","4.02-4.71","4.71-5.39","5.39-6.08","6.08-6.77","6.77-7.46","7.46-8.14","8.14-8.83","8.83-9.53"))
+
+
+ggplot(data=housing,aes(x=AgeGrps,y=Price))+geom_boxplot()
+```
+
+
+Groupings on Bedrooms
+
+```{r}
+housing$BRoomGrps<-cut(housing$Br,10,labels = c("2-2.45","2.45-2.9","2.9-3.35","3.35-3.8","3.8-4.25","4.25-4.7","4.7-5.15","5.15-5.6","5.6-6.05","6.05-6.5"))
+#table(housing$BRoomGrps)
+ggplot(data=housing,aes(x=BRoomGrps,y=Price))+geom_boxplot()
+
+
+```
+
+Groups on Number of rooms
+```{r}
+housing$RoomGrps<-cut(housing$NorOfRooms,10,labels = c("3-4","4-5","5-5.5","5.5-6","6-7","7-8","8-8.5","8.5-9","9-10","10-11"))
+table(housing$RoomGrps)
+ggplot(data=housing,aes(x=RoomGrps,y=Price))+geom_boxplot()
+
+```
+
+
+
+```{r}
+housing$NorOfRoomsGrps=NULL
+names(housing)
+```
+
+Thus we have created multiple groups within our population based on number of rooms, bedrooms, age of houses group and income groups viz.
+
+AgeGroups:  Group of age of houses between 2 to 9.53 years
+RoomGrps: Group based on number of rooms each household has
+BRoomGrps: Group based on number of bedrooms each household
+incGrps10k: Groups  based on income groups measure in multiples of 10k
+
+Now we will perform ANOVA tests on comparing whether the population mean of prices of houses are same for all groups or not. 
+
+Null Hypothesis {$H_0$}: {$\mu_1$}={$\mu_2$}={$\mu_3$}=....{$\mu_1$}
+Alternative {$H_a$}:Atleast two groups could have different population means
+
+```{r}
+summary(aov(housing$Price ~ housing$AgeGrps),data=housing)
+
+
+```
+From above ANOVA test it can be observed that p value is very very close to 0, thus it's less than sigificance level alpha, hence we reject null hypothesis that population means of prices of houses could be same for different groups of age of houses.
+Thus there could be atleast two groups of age, which have different population means of prices.
+
+Now lets test teh assumptions of ANOVA
+```{r}
+mod<-lm(Price~AgeGrps, data = housing)
+housing$resid=mod$residuals
+housing$fitted=mod$fitted
+ggplot(data = housing, aes(x=fitted, y=resid, color=AgeGrps)) + geom_point()
+
+```
+
+Here it is observed that fourth assumption of anova test is violated, that is variances in the population is not equal since there is equal spread of points above and below residual equal to 0. Thus we perform Kruskal Wallis test which is non parametric ANOVA as it performs ANOVA on ranks instead of actual values. 
+
+```{r}
+kruskal.test(Price~AgeGrps,data=housing)
+```
+
+We get the same p value and hence reject null hypothesis in favor of alternative that population measn of prices could be different for different groups.
+
+Now Linear regression based on prices and age of houses:
+
+
+```{r}
+model1=lm(housing$Price ~ housing$AgeOfHouses,data=housing)
+summary(model1)
+confint(model1,level=0.95)
+
+preds <- predict(model1, newdata=data.frame(Age=housing$AgeOfHouses), interval="prediction", level=0.95)
+housing$lwrAgePrice <- preds[,2]
+housing$uprAgePrice <- preds[,3]
+#preds
+
+ggplot(housing, aes(x=AgeOfHouses, y=Price)) +
+  geom_point() +
+  theme_linedraw() +
+  geom_ribbon(aes(ymin=lwrAgePrice, ymax=uprAgePrice), alpha=0.5, fill="yellow") +
+  geom_smooth(method="lm", se=TRUE, level=0.95)
+
+```
+
+
+Few other linear models and ANOVA on different groups of data:
+
+Linear model for (Price ~ Numebr of rooms)
+```{r}
+model2=lm(housing$Price ~ housing$NorOfRooms,data=housing)
+summary(model2)
+ggplot(data=housing,aes(x=housing$NorOfRooms,y= housing$Price))+
+  geom_point()+
+  theme_linedraw()+
+  geom_smooth(method = "lm",se=T,level=0.95)
+
+predsRooms <- predict(model2, newdata=data.frame(Age=housing$NorOfRooms), interval="prediction", level=0.95)
+housing$lwrRoomsPrice <- predsRooms[,2]
+housing$uprRoomsPrice <- predsRooms[,3]
+#preds
+
+ggplot(housing, aes(x=NorOfRooms, y=Price)) +
+  geom_point() +
+  theme_linedraw() +
+  geom_ribbon(aes(ymin=lwrRoomsPrice, ymax=uprRoomsPrice), alpha=0.5, fill="yellow") +
+  geom_smooth(method="lm", se=TRUE, level=0.95)
+
+```
+
+ANOVA for (price ~ income groups)
+```{r}
+summary(aov(housing$Price ~ housing$incGrps10k, data=housing))
+
+```
+
+```{r}
+summary(aov(housing$Price ~ housing$BRoomGrps, data=housing))
+summary(aov(housing$Price ~ housing$RoomGrps, data=housing))
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
